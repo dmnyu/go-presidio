@@ -7,20 +7,20 @@ import (
 )
 
 type PresidioClient struct {
-	URL     string
-	nclient *http.Client
+	URL    string
+	client *http.Client
 }
 
 func NewPresidioClient(url string) *PresidioClient {
 	return &PresidioClient{
-		URL:     url,
-		nclient: &http.Client{},
+		URL:    url,
+		client: http.DefaultClient,
 	}
 }
 
 func (c *PresidioClient) do(request *http.Request) (*http.Response, error) {
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := c.client.Do(request)
 	if err != nil {
 		return nil, err
 	}
