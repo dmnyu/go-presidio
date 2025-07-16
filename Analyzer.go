@@ -42,7 +42,7 @@ func (c *PresidioClient) AnalyzeText(ar *AnalysisRequest) (*AnalysisResults, err
 		return nil, fmt.Errorf("failed to marshal analysis request: %v", err)
 	}
 
-	resp, err := c.POST(c.URL+"/analyze", bytes.NewBuffer(jsonData))
+	resp, err := c.POST(c.URL+":5002/analyze", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
