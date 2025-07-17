@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-type AnonymizationResponse struct {
+type AnonymizationResult struct {
 	Text  string `json:"text"`
 	Items []Item `json:"items"`
 }
@@ -24,7 +24,9 @@ type Item struct {
 type Anonymizer struct {
 	AnonymizerType string `json:"type"`
 	NewValue       string `json:"new_value"`
-	Mask           string `json:"mask,omitempty"`
+	MaskingChar    string `json:"masking_char,omitempty"`
+	CharsToMask    int    `json:"chars_to_mask,omitempty"`
+	FromEnd        bool   `json:"from_end,omitempty"`
 }
 
 type AnonymizationRequest struct {
@@ -48,6 +50,10 @@ func (ar *AnonymizationRequest) AddAnonymizers(anonymizers map[string]Anonymizer
 	}
 }
 
+func NewDefaultAnonymizer() Anonymizer {
+	return NewSimpleAnonymizer(nil)
+}
+
 func NewSimpleAnonymizer(value *string) Anonymizer {
 	anonymizer := Anonymizer{
 		AnonymizerType: "replace",
@@ -63,7 +69,7 @@ func NewSimpleAnonymizer(value *string) Anonymizer {
 	return anonymizer
 }
 
-func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*AnonymizationResponse, error) {
+func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*AnonymizationResult, error) {
 	jsonData, err := json.Marshal(ar)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal analysis request: %v", err)
@@ -84,7 +90,7 @@ func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*Anonymization
 		return nil, err
 	}
 
-	results := AnonymizationResponse{}
+	results := AnonymizationResult{}
 	if err := json.Unmarshal(reader, &results); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
