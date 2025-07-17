@@ -74,8 +74,16 @@ func TestGoPresidio(t *testing.T) {
 		if len(*supportedEntities) <= 1 {
 			t.Errorf("Expected more than 1 supported entity, got %d", len(*supportedEntities))
 		}
+	})
 
-		t.Log(*supportedEntities)
+	t.Run("test analyzer recognizers", func(t *testing.T) {
+		recognizers, err := client.GetAnalyzerRecognizers()
+		if err != nil {
+			t.Error("Failed to get recognizers")
+		}
+		if len(*recognizers) <= 1 {
+			t.Errorf("Expected more than 1 recognizer, got %d", len(*recognizers))
+		}
 	})
 
 	t.Run("test anonymizer health", func(t *testing.T) {

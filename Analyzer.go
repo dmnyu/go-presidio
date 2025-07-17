@@ -115,3 +115,28 @@ func (c *PresidioClient) GetAnalyzerSupportedEntities() (*[]string, error) {
 
 	return &entities, nil
 }
+
+func (c *PresidioClient) GetAnalyzerRecognizers() (*[]string, error) {
+	endpoint := fmt.Sprintf("%s:%d/recognizers?language=en", c.URL, c.AnalyzerPort)
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recognizers: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get recognizers: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	var recognizers []string
+	if err := json.Unmarshal(body, &recognizers); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	return &recognizers, nil
+}
