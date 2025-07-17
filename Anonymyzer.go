@@ -21,17 +21,46 @@ type Item struct {
 	Operator   string `json:"operator"`
 }
 
-type AnonymizationRequest struct {
-	Text            string          `json:"text"`
-	AnalyzerResults AnalysisResults `json:"analyzer_results"`
-	Anonymizers     struct {
-		Default DefaultAnonymizer `json:"DEFAULT"`
-	} `json:"anonymizers"`
-}
-
-type DefaultAnonymizer struct {
+type Anonymizer struct {
 	AnonymizerType string `json:"type"`
 	NewValue       string `json:"new_value"`
+	Mask           string `json:"mask,omitempty"`
+}
+
+type AnonymizationRequest struct {
+	Text            string                `json:"text"`
+	AnalyzerResults AnalysisResults       `json:"analyzer_results"`
+	Anonymizers     map[string]Anonymizer `json:"anonymizers"`
+}
+
+type AnonymizerAndLabel struct {
+	Label      string     `json:"label"`
+	Anonymizer Anonymizer `json:"anonymizer"`
+}
+
+func (ar *AnonymizationRequest) AddAnonymizer(al AnonymizerAndLabel) {
+	ar.Anonymizers[al.Label] = al.Anonymizer
+}
+
+func (ar *AnonymizationRequest) AddAnonymizers(anonymizers map[string]Anonymizer) {
+	for k, y := range anonymizers {
+		ar.Anonymizers[k] = y
+	}
+}
+
+func NewSimpleAnonymizer(value *string) Anonymizer {
+	anonymizer := Anonymizer{
+		AnonymizerType: "replace",
+		NewValue:       "",
+	}
+
+	if value != nil {
+		anonymizer.NewValue = *value
+	} else {
+		anonymizer.NewValue = "<REDACTED>"
+	}
+
+	return anonymizer
 }
 
 func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*AnonymizationResponse, error) {
@@ -47,7 +76,7 @@ func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*Anonymization
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to analyze text: %s", resp.Status)
+		return nil, fmt.Errorf("failed to anonymizer text: %s", resp.Status)
 	}
 
 	reader, err := io.ReadAll(resp.Body)
