@@ -97,3 +97,25 @@ func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*Anonymization
 
 	return &results, nil
 }
+
+func (c *PresidioClient) AnonymizerHealth() (*string, error) {
+	endpoint := fmt.Sprintf("%s:%d/health", c.URL, c.AnonymizerPort)
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check health: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("health check failed: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read health response: %v", err)
+	}
+
+	bodyString := string(body)
+	var out *string = &bodyString
+	return out, nil
+}

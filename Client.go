@@ -1,21 +1,51 @@
 package go_presidio
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 type PresidioClient struct {
-	URL    string
-	client *http.Client
+	URL            string
+	client         *http.Client
+	AnalyzerPort   int
+	AnonymizerPort int
 }
 
-func NewPresidioClient(url string) *PresidioClient {
-	return &PresidioClient{
-		URL:    url,
-		client: http.DefaultClient,
+type ClientConfig struct {
+	Host           string `json:"host"`
+	AnalyzerPort   int    `json:"analyzer_port"`
+	AnonymizerPort int    `json:"anonymizer_port"`
+}
+
+func NewPresidioClient(configPath string) (*PresidioClient, error) {
+
+	if _, err := os.Stat(configPath); err != nil {
+		fmt.Println("CONFIGPATH:", configPath)
+		return nil, err
 	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	config := ClientConfig{}
+	if err := json.Unmarshal(configBytes, &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	fmt.Println(config)
+
+	return &PresidioClient{
+		URL:            config.Host,
+		client:         http.DefaultClient,
+		AnalyzerPort:   config.AnalyzerPort,
+		AnonymizerPort: config.AnonymizerPort,
+	}, nil
 }
 
 func (c *PresidioClient) do(request *http.Request) (*http.Response, error) {

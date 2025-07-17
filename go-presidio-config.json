@@ -1,0 +1,5 @@
+{
+    "host": "http://localhost",
+    "analyzer_port": 5002,
+    "anonymizer_port": 5001
+}

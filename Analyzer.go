@@ -8,6 +8,8 @@ import (
 	"net/http"
 )
 
+var analysisEndpoint = "analyze"
+
 type AnalysisResults []AnalysisResult
 
 type AnalysisResult struct {
@@ -25,8 +27,9 @@ type RecognitionMetadata struct {
 }
 
 type AnalysisRequest struct {
-	Text     string `json:"text"`
-	Language string `json:"language"`
+	Text           string  `json:"text"`
+	Language       string  `json:"language"`
+	ScoreThreshold float32 `json:"score_threshold,omitempty"`
 }
 
 func (ar AnalysisResult) String() string {
@@ -42,7 +45,8 @@ func (c *PresidioClient) AnalyzeText(ar *AnalysisRequest) (*AnalysisResults, err
 		return nil, fmt.Errorf("failed to marshal analysis request: %v", err)
 	}
 
-	resp, err := c.POST(c.URL+":5002/analyze", bytes.NewBuffer(jsonData))
+	endpoint := fmt.Sprintf("%s:%d/%s", c.URL, c.AnalyzerPort, analysisEndpoint)
+	resp, err := c.POST(endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -63,4 +67,51 @@ func (c *PresidioClient) AnalyzeText(ar *AnalysisRequest) (*AnalysisResults, err
 	}
 
 	return &results, nil
+}
+
+func (c *PresidioClient) AnalyzerHealth() (*string, error) {
+	endpoint := fmt.Sprintf("%s:%d/health", c.URL, c.AnalyzerPort)
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check health: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("health check failed: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read health response: %v", err)
+	}
+
+	bodyString := string(body)
+	var out *string = &bodyString
+	return out, nil
+}
+
+func (c *PresidioClient) GetAnalyzerSupportedEntities() (*[]string, error) {
+	endpoint := fmt.Sprintf("%s:%d/supportedentities?language=en", c.URL, c.AnalyzerPort)
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get supported entities: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get supported entities: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	var entities []string
+	if err := json.Unmarshal(body, &entities); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	return &entities, nil
 }
