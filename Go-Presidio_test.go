@@ -204,4 +204,34 @@ func TestPresidioAnonymizer(t *testing.T) {
 
 	})
 
+	t.Run("test hash anonymization", func(t *testing.T) {
+
+		anonymizationRequest = &AnonymizationRequest{
+			Text:            text,
+			AnalyzerResults: *analysis_results,
+			Anonymizers:     make(map[string]Anonymizer),
+		}
+
+		anonymizationRequest.AddAnonymizer(
+			AnonymizerAndLabel{
+				Label: "PERSON",
+				Anonymizer: Anonymizer{
+					AnonymizerType: "hash",
+				},
+			},
+		)
+
+		var err error
+		anonymizationResult, err = client.AnonymizeText(anonymizationRequest)
+		if err != nil {
+			t.Error("Failed to anonymize text with hash")
+		}
+
+		hash := "5991ce426259a177aa1e0a9a0317e4bb0a21c09cf28e4743c5c1e2c91a306d3e"
+
+		if anonymizationResult.Items[0].Text != hash {
+			t.Errorf("Expected hash %s, got %s", hash, anonymizationResult.Items[0].Text)
+		}
+	})
+
 }
