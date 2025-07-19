@@ -27,6 +27,7 @@ type Anonymizer struct {
 	MaskingChar    string `json:"masking_char,omitempty"`
 	CharsToMask    int    `json:"chars_to_mask,omitempty"`
 	FromEnd        bool   `json:"from_end,omitempty"`
+	Key            string `json:"key,omitempty"`
 }
 
 type AnonymizationRequest struct {
@@ -98,9 +99,13 @@ func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*Anonymization
 	return &results, nil
 }
 
+func (c *PresidioClient) DeAnonymizeText() (*string, error) {
+	return nil, nil
+}
+
 func (c *PresidioClient) AnonymizerHealth() (*string, error) {
 	endpoint := fmt.Sprintf("%s:%d/health", c.URL, c.AnonymizerPort)
-	resp, err := http.Get(endpoint)
+	resp, err := c.GET(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check health: %v", err)
 	}
@@ -118,4 +123,30 @@ func (c *PresidioClient) AnonymizerHealth() (*string, error) {
 	bodyString := string(body)
 	var out *string = &bodyString
 	return out, nil
+}
+
+func (c *PresidioClient) GetAnonymizers() (*[]string, error) {
+	endpoint := fmt.Sprintf("%s:%d/anonymizers", c.URL, c.AnonymizerPort)
+	resp, err := c.GET(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get anonymizers: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get anonymizers: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read anonymizers response: %v", err)
+	}
+
+	var anonymizers []string
+	if err := json.Unmarshal(body, &anonymizers); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal anonymizers response: %v", err)
+	}
+
+	return &anonymizers, nil
+
 }

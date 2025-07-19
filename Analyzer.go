@@ -10,6 +10,22 @@ import (
 
 var analysisEndpoint = "analyze"
 
+type AdHocRecognizer []Recognizer
+
+type Recognizer struct {
+	Name              string    `json:"name"`
+	SupportedLanguage string    `json:"supported_language"`
+	Patterns          []Pattern `json:"patterns"`
+	Context           []string  `json:"context"`
+	SupportedEntity   string    `json:"supported_entity"`
+}
+
+type Pattern struct {
+	Name  string  `json:"name"`
+	Regex string  `json:"regex"`
+	Score float64 `json:"score"`
+}
+
 type AnalysisResults []AnalysisResult
 
 type AnalysisResult struct {
@@ -27,9 +43,10 @@ type RecognitionMetadata struct {
 }
 
 type AnalysisRequest struct {
-	Text           string  `json:"text"`
-	Language       string  `json:"language"`
-	ScoreThreshold float32 `json:"score_threshold,omitempty"`
+	Text             string          `json:"text"`
+	Language         string          `json:"language"`
+	ScoreThreshold   float32         `json:"score_threshold,omitempty"`
+	AdHocRecognizers AdHocRecognizer `json:"ad_hoc_recognizers,omitempty"`
 }
 
 func (ar AnalysisResult) String() string {

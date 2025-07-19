@@ -76,3 +76,21 @@ func (c *PresidioClient) POST(endpoint string, body io.Reader) (*http.Response, 
 
 	return resp, nil
 }
+
+func (c *PresidioClient) GET(endpoint string) (*http.Response, error) {
+	request, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get from %s: %s", endpoint, resp.Status)
+	}
+
+	return resp, nil
+}
