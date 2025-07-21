@@ -43,10 +43,13 @@ type RecognitionMetadata struct {
 }
 
 type AnalysisRequest struct {
-	Text             string          `json:"text"`
-	Language         string          `json:"language"`
-	ScoreThreshold   float32         `json:"score_threshold,omitempty"`
-	AdHocRecognizers AdHocRecognizer `json:"ad_hoc_recognizers,omitempty"`
+	Text                  string          `json:"text"`
+	Language              string          `json:"language"`
+	CorrelationID         string          `json:"correlation_id,omitempty"`
+	ScoreThreshold        float32         `json:"score_threshold,omitempty"`
+	ReturnDecisionProcess bool            `json:"return_decision_process,omitempty"`
+	AdHocRecognizers      AdHocRecognizer `json:"ad_hoc_recognizers,omitempty"`
+	Context               *[]string       `json:"context,omitempty"`
 }
 
 func (ar AnalysisResult) String() string {

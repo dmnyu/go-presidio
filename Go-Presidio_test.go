@@ -8,7 +8,9 @@ var text = "Sample text to analyze:\n  My name is John Doe,\n  my email is john@
 
 var (
 	client               *PresidioClient
-	analysis_results     *AnalysisResults
+	adhocRecognizers     []Recognizer
+	analysisRequest      *AnalysisRequest
+	analysisResults      *AnalysisResults
 	anonymizationRequest *AnonymizationRequest
 	anonymizationResult  *AnonymizationResult
 	encryptedText        string
@@ -46,24 +48,24 @@ func TestPresidioAnalyzer(t *testing.T) {
 
 	t.Run("test analyzer", func(t *testing.T) {
 		var err error
-		analysis_results, err = client.AnalyzeText(&AnalysisRequest{Text: text, Language: "en"})
+		analysisResults, err = client.AnalyzeText(&AnalysisRequest{Text: text, Language: "en"})
 		if err != nil {
 			panic(err)
 		}
 
-		if len(*analysis_results) != 6 {
-			t.Errorf("Expected 6 analysis results, got %d", len(*analysis_results))
+		if len(*analysisResults) != 6 {
+			t.Errorf("Expected 6 analysis results, got %d", len(*analysisResults))
 		}
 	})
 
 	t.Run("test analyzer scoring", func(t *testing.T) {
 		var err error
-		analysis_results, err = client.AnalyzeText(&AnalysisRequest{Text: text, Language: "en", ScoreThreshold: 0.75})
+		analysisResults, err = client.AnalyzeText(&AnalysisRequest{Text: text, Language: "en", ScoreThreshold: 0.75})
 		if err != nil {
 			panic(err)
 		}
 
-		for _, result := range *analysis_results {
+		for _, result := range *analysisResults {
 			if result.Score < 0.75 {
 				t.Errorf("Expected score >= 0.75, got %.2f for entity type %s", result.Score, result.EntityType)
 			}
@@ -93,20 +95,20 @@ func TestPresidioAnalyzer(t *testing.T) {
 	})
 
 	t.Run("test analyzer adhoc recognizer", func(t *testing.T) {
-		adhoc_recgonizer := AdHocRecognizer{}
+		adhocRecognizers = []Recognizer{}
 
 		pattern := Pattern{Name: "zip code (weak)", Regex: "(\\b\\d{5}(?:\\-\\d{4})?\\b)", Score: 0.01}
 		recognizer := Recognizer{Name: "Zip code Recognizer", SupportedLanguage: "en", Patterns: []Pattern{pattern}, Context: []string{"zip", "code"}, SupportedEntity: "ZIP"}
-		adhoc_recgonizer = append(adhoc_recgonizer, recognizer)
+		adhocRecognizers = append(adhocRecognizers, recognizer)
 
 		var err error
-		analysis_results, err = client.AnalyzeText(&AnalysisRequest{Text: text, Language: "en", AdHocRecognizers: adhoc_recgonizer})
+		analysisResults, err = client.AnalyzeText(&AnalysisRequest{Text: text, Language: "en", AdHocRecognizers: adhocRecognizers})
 		if err != nil {
 			t.Error("Failed to analyze text with ad-hoc recognizer")
 		}
 
 		isZIP := false
-		for _, result := range *analysis_results {
+		for _, result := range *analysisResults {
 			if result.EntityType == "ZIP" {
 				isZIP = true
 				break
@@ -145,11 +147,11 @@ func TestPresidioAnonymizer(t *testing.T) {
 	t.Run("test anonymization", func(t *testing.T) {
 		anonymizationRequest = &AnonymizationRequest{
 			Text:            text,
-			AnalyzerResults: *analysis_results,
+			AnalyzerResults: *analysisResults,
 			Anonymizers:     make(map[string]Anonymizer),
 		}
 
-		anonymizationRequest.AddAnonymizer(AnonymizerAndLabel{Label: "DEFAULT", Anonymizer: NewDefaultAnonymizer()})
+		anonymizationRequest.AddAnonymizer(AnonymizerAndLabel{Label: "DEFAULT", Anonymizer: NewReplaceAnonymizer(nil)})
 
 		var err error
 		anonymizationResult, err = client.AnonymizeText(anonymizationRequest)
@@ -164,21 +166,21 @@ func TestPresidioAnonymizer(t *testing.T) {
 	})
 
 	t.Run("test encryption", func(t *testing.T) {
-		text = "My Name is Donald"
-		AnalysisRequest := &AnalysisRequest{
+		text = "My Name is Bruce Haack"
+		analysisRequest = &AnalysisRequest{
 			Text:     text,
 			Language: "en",
 		}
 
 		var err error
-		analysis_results, err = client.AnalyzeText(AnalysisRequest)
+		analysisResults, err = client.AnalyzeText(analysisRequest)
 		if err != nil {
 			t.Error("Failed to analyze text for encryption")
 		}
 
 		anonymizationRequest = &AnonymizationRequest{
 			Text:            text,
-			AnalyzerResults: *analysis_results,
+			AnalyzerResults: *analysisResults,
 			Anonymizers:     make(map[string]Anonymizer),
 		}
 
@@ -196,7 +198,6 @@ func TestPresidioAnonymizer(t *testing.T) {
 		if err != nil {
 			t.Error("Failed to anonymize text with encryption")
 		}
-
 		encryptedText = anonymizationResult.Text
 	})
 
@@ -204,20 +205,32 @@ func TestPresidioAnonymizer(t *testing.T) {
 
 	})
 
+	t.Run("test mask anonymization", func(t *testing.T) {
+		var err error
+		anonymizationRequest = &AnonymizationRequest{}
+		anonymizationRequest.Text = text
+		anonymizationRequest.AnalyzerResults = *analysisResults
+		maskAnonymizer := NewMaskAnonymizer("*", 4, true)
+		anonymizationRequest.Anonymizers = make(map[string]Anonymizer)
+		anonymizationRequest.AddAnonymizer(AnonymizerAndLabel{Label: "PERSON", Anonymizer: maskAnonymizer})
+
+		anonymizationResult, err = client.AnonymizeText(anonymizationRequest)
+		if err != nil {
+			t.Error("Failed to anonymize text with mask")
+		}
+	})
 	t.Run("test hash anonymization", func(t *testing.T) {
 
 		anonymizationRequest = &AnonymizationRequest{
 			Text:            text,
-			AnalyzerResults: *analysis_results,
+			AnalyzerResults: *analysisResults,
 			Anonymizers:     make(map[string]Anonymizer),
 		}
 
 		anonymizationRequest.AddAnonymizer(
 			AnonymizerAndLabel{
-				Label: "PERSON",
-				Anonymizer: Anonymizer{
-					AnonymizerType: "hash",
-				},
+				Label:      "PERSON",
+				Anonymizer: NewHashAnonymizer(),
 			},
 		)
 
@@ -227,7 +240,7 @@ func TestPresidioAnonymizer(t *testing.T) {
 			t.Error("Failed to anonymize text with hash")
 		}
 
-		hash := "5991ce426259a177aa1e0a9a0317e4bb0a21c09cf28e4743c5c1e2c91a306d3e"
+		hash := "29fad96314cb111e646835ce3101c4c2ff176e0c97d8a56483c1e1650e81c4e5"
 
 		if anonymizationResult.Items[0].Text != hash {
 			t.Errorf("Expected hash %s, got %s", hash, anonymizationResult.Items[0].Text)

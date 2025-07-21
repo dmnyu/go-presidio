@@ -8,19 +8,6 @@ import (
 	"net/http"
 )
 
-type AnonymizationResult struct {
-	Text  string `json:"text"`
-	Items []Item `json:"items"`
-}
-
-type Item struct {
-	Start      int    `json:"start"`
-	End        int    `json:"end"`
-	EntityType string `json:"entity_type"`
-	Text       string `json:"text"`
-	Operator   string `json:"operator"`
-}
-
 type Anonymizer struct {
 	AnonymizerType string `json:"type"`
 	NewValue       string `json:"new_value"`
@@ -30,15 +17,28 @@ type Anonymizer struct {
 	Key            string `json:"key,omitempty"`
 }
 
-type AnonymizationRequest struct {
-	Text            string                `json:"text"`
-	AnalyzerResults AnalysisResults       `json:"analyzer_results"`
-	Anonymizers     map[string]Anonymizer `json:"anonymizers"`
-}
-
 type AnonymizerAndLabel struct {
 	Label      string     `json:"label"`
 	Anonymizer Anonymizer `json:"anonymizer"`
+}
+
+type AnonymizationResult struct {
+	Text  string `json:"text"`
+	Items []Item `json:"items"`
+}
+
+type AnonymizationRequest struct {
+	Text            string                `json:"text"`
+	AnalyzerResults AnalysisResults       `json:"analyzer_results"`
+	Anonymizers     map[string]Anonymizer `json:"anonymizers,omitempty"`
+}
+
+type Item struct {
+	Start      int    `json:"start"`
+	End        int    `json:"end"`
+	EntityType string `json:"entity_type"`
+	Text       string `json:"text"`
+	Operator   string `json:"operator"`
 }
 
 func (ar *AnonymizationRequest) AddAnonymizer(al AnonymizerAndLabel) {
@@ -52,10 +52,10 @@ func (ar *AnonymizationRequest) AddAnonymizers(anonymizers map[string]Anonymizer
 }
 
 func NewDefaultAnonymizer() Anonymizer {
-	return NewSimpleAnonymizer(nil)
+	return NewReplaceAnonymizer(nil)
 }
 
-func NewSimpleAnonymizer(value *string) Anonymizer {
+func NewReplaceAnonymizer(value *string) Anonymizer {
 	anonymizer := Anonymizer{
 		AnonymizerType: "replace",
 		NewValue:       "",
@@ -68,6 +68,23 @@ func NewSimpleAnonymizer(value *string) Anonymizer {
 	}
 
 	return anonymizer
+}
+
+func NewMaskAnonymizer(maskingChar string, charsToMask int, fromEnd bool) Anonymizer {
+	anonymizer := Anonymizer{
+		AnonymizerType: "mask",
+		MaskingChar:    "*",
+		CharsToMask:    charsToMask,
+		FromEnd:        fromEnd,
+	}
+
+	return anonymizer
+}
+
+func NewHashAnonymizer() Anonymizer {
+	return Anonymizer{
+		AnonymizerType: "hash",
+	}
 }
 
 func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*AnonymizationResult, error) {
