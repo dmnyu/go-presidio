@@ -10,7 +10,7 @@ import (
 
 type Anonymizer struct {
 	AnonymizerType string `json:"type"`
-	NewValue       string `json:"new_value"`
+	NewValue       string `json:"new_value,omitempty"`
 	MaskingChar    string `json:"masking_char,omitempty"`
 	CharsToMask    int    `json:"chars_to_mask,omitempty"`
 	FromEnd        bool   `json:"from_end,omitempty"`
@@ -31,6 +31,17 @@ type AnonymizationRequest struct {
 	Text            string                `json:"text"`
 	AnalyzerResults AnalysisResults       `json:"analyzer_results"`
 	Anonymizers     map[string]Anonymizer `json:"anonymizers,omitempty"`
+}
+
+type DeanonymizationRequest struct {
+	Text             string                `json:"text"`
+	Deanonymizers    map[string]Anonymizer `json:"deanonymizers"`
+	AnonymizerResult []Item                `json:"anonymizer_results"`
+}
+
+type DeanonymizationResult struct {
+	Text  string `json:"text"`
+	Items []Item `json:"items"`
 }
 
 type Item struct {
@@ -116,8 +127,32 @@ func (c *PresidioClient) AnonymizeText(ar *AnonymizationRequest) (*Anonymization
 	return &results, nil
 }
 
-func (c *PresidioClient) DeAnonymizeText() (*string, error) {
-	return nil, nil
+func (c *PresidioClient) DeanonymizeText(dr *DeanonymizationRequest) (*DeanonymizationResult, error) {
+	jsonData, err := json.Marshal(dr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal analysis request: %v", err)
+	}
+
+	resp, err := c.POST(c.URL+":5001/deanonymize", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to anonymizer text: %s", resp.Status)
+	}
+
+	reader, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	results := &DeanonymizationResult{}
+	if err := json.Unmarshal(reader, &results); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return results, nil
 }
 
 func (c *PresidioClient) AnonymizerHealth() (*string, error) {

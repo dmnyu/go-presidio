@@ -14,6 +14,7 @@ var (
 	anonymizationRequest *AnonymizationRequest
 	anonymizationResult  *AnonymizationResult
 	encryptedText        string
+	key                  = "1234567887654321"
 )
 
 func TestGoPresidioClient(t *testing.T) {
@@ -189,7 +190,7 @@ func TestPresidioAnonymizer(t *testing.T) {
 				Label: "PERSON",
 				Anonymizer: Anonymizer{
 					AnonymizerType: "encrypt",
-					Key:            "1234123412341234",
+					Key:            key,
 				},
 			},
 		)
@@ -202,6 +203,20 @@ func TestPresidioAnonymizer(t *testing.T) {
 	})
 
 	t.Run("test decryption", func(t *testing.T) {
+		deanonymizationRequest := &DeanonymizationRequest{}
+		deanonymizationRequest.Text = encryptedText
+		deanonymizationRequest.Deanonymizers = map[string]Anonymizer{}
+		deanonymizationRequest.Deanonymizers["PERSON"] = Anonymizer{AnonymizerType: "decrypt", Key: key}
+		deanonymizationRequest.AnonymizerResult = anonymizationResult.Items
+
+		deanonymizationResult, err := client.DeanonymizeText(deanonymizationRequest)
+		if err != nil {
+			t.Errorf("failed to deanonymize text: %s", err.Error())
+		}
+
+		if deanonymizationResult.Text != text {
+			t.Errorf("wanted %s got %s", text, deanonymizationRequest.Text)
+		}
 
 	})
 
