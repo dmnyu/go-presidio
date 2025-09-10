@@ -38,8 +38,6 @@ func NewPresidioClient(configPath string) (*PresidioClient, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	fmt.Println(config)
-
 	return &PresidioClient{
 		URL:            config.Host,
 		client:         http.DefaultClient,
